@@ -1,21 +1,3 @@
-<html>
-<head>
-  <title>OpenVPN Config</title>
-<style>
-    body {
-        background-color: white
-    }
-    .code {
-        text-color: black;
-    }
-    .code pre {
-        text-color: black;
-    }
-</style>
-</head>
-<body>
-<div class="code">
-<pre>
 #
 # Expiration of Certificate: {{ .expires_in }}
 # Session Duration: {{ .ttl }}
@@ -43,23 +25,19 @@ inactive 3600
 #comp-lzo
 cipher AES-256-CBC
 
-&lt;ca&gt;
+<ca>
 {{ .issuing_ca }}
-&lt;/ca&gt;
+</ca>
 
-&lt;cert&gt;
+<cert>
 {{ .certificate }}
-&lt;/cert&gt;
+</cert>
 
-&lt;key&gt;
+<key>
 {{ .private_key }}
-&lt;/key&gt;
+</key>
 
-&lt;tls-auth&gt;
+<tls-auth>
 {{ .tlsauth }}
-&lt;/tls-auth&gt;
+</tls-auth>
 key-direction 1
-</pre>
-</div>
-</body>
-</html>

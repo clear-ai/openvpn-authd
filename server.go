@@ -18,13 +18,15 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	"github.com/golang/glog"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"text/template"
+	"time"
 )
 
 type openvpnAuthd struct {
@@ -60,9 +62,9 @@ func NewOpenVPNAuthd(cfg *AuthConfig) (OpenVPNAuthd, error) {
 
 	// step: create the gin router
 	router := gin.New()
-	router.LoadHTMLGlob("templates/*")
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+	router.LoadHTMLGlob("templates/*")
 	router.GET("/health", service.healthHandler)
 	router.GET("/", service.openVPNHandler)
 
@@ -109,8 +111,7 @@ func (r *openvpnAuthd) openVPNHandler(cx *gin.Context) {
 			return
 		}
 
-		// step: template out the config with tls auth
-		cx.HTML(http.StatusOK, "openvpn.html", gin.H{
+		file := gin.H{
 			"openvpn_servers": r.config.servers,
 			"ttl":             cert.TTL,
 			"expires_in":      time.Now().Add(cert.TTL),
@@ -119,10 +120,12 @@ func (r *openvpnAuthd) openVPNHandler(cx *gin.Context) {
 			"issuing_ca":      cert.IssuingCA,
 			"email":           emailAddress,
 			"tlsauth":         string(tlsAuth),
-		})
+		}
+
+		templateFile(file, cx)
+
 	} else {
-		// step: template out the config without tlsauth
-		cx.HTML(http.StatusOK, "openvpn.html", gin.H{
+		file := gin.H{
 			"openvpn_servers": r.config.servers,
 			"ttl":             cert.TTL,
 			"expires_in":      time.Now().Add(cert.TTL),
@@ -130,10 +133,70 @@ func (r *openvpnAuthd) openVPNHandler(cx *gin.Context) {
 			"private_key":     cert.PrivateKey,
 			"issuing_ca":      cert.IssuingCA,
 			"email":           emailAddress,
-		})
+		}
+
+		templateFile(file, cx)
+
 	}
 }
 
 func (r *openvpnAuthd) healthHandler(cx *gin.Context) {
-	cx.String(http.StatusOK, "OK")
+	res, err := GetVaultHealth(r)
+	if err != nil {
+		cx.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	res.AppVersion = Version
+	cx.JSON(http.StatusOK, res)
+}
+
+func templateFile(d gin.H, cx *gin.Context) {
+	t, err := template.ParseFiles("templates/openvpn.tmpl")
+	if err != nil {
+		glog.Error(err)
+		cx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	var fi bytes.Buffer
+	t.Execute(&fi, d)
+
+	writeVPNFile(fi.String(), cx)
+
+}
+func writeVPNFile(d string, cx *gin.Context) {
+
+	dir, err := ioutil.TempDir("./static/", "")
+	if err != nil {
+		glog.Error(err)
+		cx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	tmpfile, err := ioutil.TempFile(dir, "certfile")
+	if err != nil {
+		glog.Error(err)
+		cx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	defer os.Remove(dir)            // Clean up
+	defer os.Remove(tmpfile.Name()) // Clean up
+
+	_, err = tmpfile.WriteString(d)
+
+	if err != nil {
+		glog.Error(err)
+		cx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	if err := tmpfile.Close(); err != nil {
+		glog.Error(err)
+		cx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	cx.File(tmpfile.Name())
+
 }

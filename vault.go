@@ -23,6 +23,9 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/hashicorp/vault/api"
+	"net/http"
+	"io/ioutil"
+	"encoding/json"
 )
 
 type vault struct {
@@ -101,14 +104,50 @@ func (r *vault) GetCertificate(subject, path string, ttl time.Duration) (*Certif
 	}
 
 	// add the full ca chain
-	var ca_chain = secret.Data["ca_chain"].([]interface{})[0].(string) + "\n" + secret.Data["ca_chain"].([]interface{})[1].(string)
+	var caChain = secret.Data["ca_chain"].([]interface{})[0].(string) + "\n" + secret.Data["ca_chain"].([]interface{})[1].(string)
 
 	// step: package the certificate
 	return &Certificate{
 		Certificate: secret.Data["certificate"].(string),
 		PrivateKey:  secret.Data["private_key"].(string),
-		IssuingCA:   ca_chain,
+		IssuingCA:   caChain,
 		TTL:         ttl,
 		Subject:     subject,
 	}, nil
+}
+
+func GetVaultHealth(r *openvpnAuthd) (*HealthResponse,error){
+	glog.Info("Getting health for vault")
+
+	path := r.config.VaultURL + "/v1/sys/health"
+
+	res, err := http.Get(path)
+	var s = new(HealthResponse)
+
+	if err != nil {
+		return s, err
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+	err = json.Unmarshal(body, s)
+
+	if err != nil {
+		return s, err
+	}
+
+	defer res.Body.Close()
+
+	return s, nil
+}
+type HealthResponse struct {
+	VaultInitialized bool `json:"initialized"`
+	VaultSealed bool `json:"sealed"`
+	VaultStandby bool `json:"standby"`
+	VaultReplicationPerformanceMode string `json:"replication_performance_mode"`
+	VaultReplicationDrMode string `json:"replication_dr_mode"`
+	VaultServerTimeUtc int `json:"server_time_utc"`
+	VaultVersion string `json:"version"`
+	VaultClusterId string `json:"cluster_id"`
+	VaultClusterName string `json:"cluster_name"`
+	AppVersion string `json:"app_version"`
 }
