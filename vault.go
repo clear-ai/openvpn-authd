@@ -94,17 +94,20 @@ func (r *vault) GetCertificate(subject, path string, ttl time.Duration) (*Certif
 	secret, err := r.client.Logical().Write(fmt.Sprintf(path),
 		map[string]interface{}{
 			"common_name": subject,
-			"ttl": ttl.String(),
+			"ttl":         ttl.String(),
 		})
 	if err != nil {
 		return nil, err
 	}
 
+	// add the full ca chain
+	var ca_chain = secret.Data["ca_chain"].([]interface{})[0].(string) + "\n" + secret.Data["ca_chain"].([]interface{})[1].(string)
+
 	// step: package the certificate
 	return &Certificate{
 		Certificate: secret.Data["certificate"].(string),
 		PrivateKey:  secret.Data["private_key"].(string),
-		IssuingCA:   secret.Data["issuing_ca"].(string),
+		IssuingCA:   ca_chain,
 		TTL:         ttl,
 		Subject:     subject,
 	}, nil

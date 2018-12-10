@@ -25,6 +25,8 @@ client
 dev tun
 proto tcp
 
+remote-cert-tls server
+
 {{ range $server := .openvpn_servers }}remote {{ $server }}
 {{ end }}
 resolv-retry infinite
@@ -34,10 +36,12 @@ persist-tun
 ca [inline]
 cert [inline]
 key [inline]
+tls-auth [inline]
 verb 1
 keepalive 10 900
 inactive 3600
-comp-lzo
+#comp-lzo
+cipher AES-256-CBC
 
 &lt;ca&gt;
 {{ .issuing_ca }}
@@ -50,6 +54,11 @@ comp-lzo
 &lt;key&gt;
 {{ .private_key }}
 &lt;/key&gt;
+
+&lt;tls-auth&gt;
+{{ .tlsauth }}
+&lt;/tls-auth&gt;
+key-direction 1
 </pre>
 </div>
 </body>

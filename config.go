@@ -21,8 +21,8 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"time"
 	"strings"
+	"time"
 )
 
 // AuthConfig os the  configuration
@@ -31,7 +31,9 @@ type AuthConfig struct {
 	// the port to run the service on
 	ServicePort int `yaml:"port"`
 	// the external hostname:port of the vpn servers
-	OpenVPNServers string `yaml:openvpn_servers"`
+	OpenVPNServers string `yaml:"openvpn_servers"`
+	// the external hostname:port of the vpn servers
+	OpenVPNtlsAuth string `yaml:"openvpn_tlsauth"`
 	// authentication subject header
 	AuthHeader string `yaml:"auth_header"`
 	// the service protocol
@@ -58,11 +60,12 @@ func parseConfig() (*AuthConfig, error) {
 	flag.IntVar(&cfg.ServicePort, "port", 8081, "the port to run the openvpn authd service on")
 	flag.StringVar(&cfg.ServiceBind, "interface", "127.0.0.1", "the interface to run the service on")
 	flag.StringVar(&cfg.AuthHeader, "auth-header", "X-Auth-Email", "the header containing the subject name")
-	flag.StringVar(&cfg.OpenVPNServers, "openvpn-servers", "", "a comma separate list of vpn servers, HOSTNAME:PORT")
+	flag.StringVar(&cfg.OpenVPNServers, "openvpn-servers", getEnv("OPENVPN_SERVERS", ""), "a comma separate list of vpn servers, HOSTNAME:PORT")
+	flag.StringVar(&cfg.OpenVPNtlsAuth, "openvpn-tlsauthfile", getEnv("TLS_AUTH_FILE", ""), "TLS Auth Key file path")
 	flag.StringVar(&cfg.VaultURL, "vault-addr", getEnv("VAULT_ADDR", "http://127.0.0.1:8200"), "the full vault service url to issue certifications (VAULT_ADDR)")
 	flag.StringVar(&cfg.VaultUsername, "vault-username", getEnv("VAULT_USER", "openvpn"), "the vault username to authenticate to the service with (VAULT_USER)")
-	flag.StringVar(&cfg.VaultPassword, "vault-password", "", "the vault password to authentication to the service (VAULT_PASSWORD)")
-	flag.StringVar(&cfg.VaultPath, "vault-pki-path", "", "the mount path in vault to issue the certificate")
+	flag.StringVar(&cfg.VaultPassword, "vault-password", getEnv("VAULT_PASSWORD", ""), "the vault password to authentication to the service (VAULT_PASSWORD)")
+	flag.StringVar(&cfg.VaultPath, "vault-pki-path", getEnv("VAULT_PKI_PATH", ""), "the mount path in vault to issue the certificate")
 	flag.BoolVar(&cfg.VaultTLSVerify, "vault-tls-verify", true, "whether to verify the certificate of the vault service")
 	flag.DurationVar(&cfg.SessionDuration, "session", time.Duration(1*time.Hour), "the duration of a certificate for openvpv account")
 	flag.StringVar(&cfg.VaultCaFile, "vault-cafile", getEnv("VAULT_CA_FILE", ""), "the path to a CA certificate used to verify vault service (VAULT_CA_FILE)")

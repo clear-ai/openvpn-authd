@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -100,16 +101,37 @@ func (r *openvpnAuthd) openVPNHandler(cx *gin.Context) {
 		return
 	}
 
-	// step: template out the config
-	cx.HTML(http.StatusOK, "openvpn.html", gin.H{
-		"openvpn_servers": r.config.servers,
-		"ttl":         cert.TTL,
-		"expires_in":  time.Now().Add(cert.TTL),
-		"certificate": cert.Certificate,
-		"private_key": cert.PrivateKey,
-		"issuing_ca":  cert.IssuingCA,
-		"email":       emailAddress,
-	})
+	// step: are we loading a openvpn tls auth file
+	if r.config.OpenVPNtlsAuth != "" {
+		tlsAuth, err := ioutil.ReadFile(r.config.OpenVPNtlsAuth)
+		if err != nil {
+			glog.Errorf("unable to read in the tlsAuth file: %s, reason: %s", r.config.OpenVPNtlsAuth, err)
+			return
+		}
+
+		// step: template out the config with tls auth
+		cx.HTML(http.StatusOK, "openvpn.html", gin.H{
+			"openvpn_servers": r.config.servers,
+			"ttl":             cert.TTL,
+			"expires_in":      time.Now().Add(cert.TTL),
+			"certificate":     cert.Certificate,
+			"private_key":     cert.PrivateKey,
+			"issuing_ca":      cert.IssuingCA,
+			"email":           emailAddress,
+			"tlsauth":         string(tlsAuth),
+		})
+	} else {
+		// step: template out the config without tlsauth
+		cx.HTML(http.StatusOK, "openvpn.html", gin.H{
+			"openvpn_servers": r.config.servers,
+			"ttl":             cert.TTL,
+			"expires_in":      time.Now().Add(cert.TTL),
+			"certificate":     cert.Certificate,
+			"private_key":     cert.PrivateKey,
+			"issuing_ca":      cert.IssuingCA,
+			"email":           emailAddress,
+		})
+	}
 }
 
 func (r *openvpnAuthd) healthHandler(cx *gin.Context) {

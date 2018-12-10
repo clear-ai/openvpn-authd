@@ -1,6 +1,6 @@
 
 NAME=openvpn-authd
-AUTHOR=ukhomeofficedigital
+AUTHOR=quay.io/clearai
 HARDWARE=$(shell uname -m)
 VERSION=$(shell awk '/Version =/ { print $$3 }' main.go | sed 's/"//g')
 DEPS=$(shell go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
@@ -18,7 +18,7 @@ build:
 
 docker: static
 	@echo "--> Building the docker image"
-	sudo docker build -t ${AUTHOR}/${NAME}:${VERSION} .
+	docker build -t ${AUTHOR}/${NAME}:${VERSION} .
 
 static:
 	@echo "--> Compiling the static binary"
